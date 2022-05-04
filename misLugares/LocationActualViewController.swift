@@ -20,8 +20,12 @@ class LocationActualViewController: UIViewController, CLLocationManagerDelegate 
     //objeto que me dara las coordenadas del gps
     let locationManager = CLLocationManager()
     
-    //ubicacion actual del usuario
+    //variable para guardar la ubicacion actual del usuario
     var location: CLLocation?
+    //actulizando ubicacion en falso
+    var updatingLocation = false
+    //ultimo herror de ubicacion
+    var lastLocationError: Error?
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -47,13 +51,8 @@ class LocationActualViewController: UIViewController, CLLocationManagerDelegate 
             return
         }
         
-        //aqui le decimos que este controlador queire firmar elprotocolo y sera su delegado
-        //haciendo lo que en el protocolo dice para obtener la ubicacion
-        locationManager.delegate = self
-        //le decimos que queremos preccion de 10 metros
-        locationManager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters
-        //iniciamos la lectura de la ubicacion y que se vaya actualizando
-        locationManager.startUpdatingLocation()
+        iniciarManejadorUbicacion()
+        actulizarLabels()
     }
     
     func actulizarLabels(){
@@ -72,7 +71,21 @@ class LocationActualViewController: UIViewController, CLLocationManagerDelegate 
             labelLongitud.text = ""
             labelDireccion.text = ""
             botonEtiqueta.isHidden = true
-            labelMensaje.text = "Toque 'Obtener mi ubicación' para comenzar"
+            let statusMessage: String
+                if let error = lastLocationError as NSError? {
+                  if error.domain == kCLErrorDomain && error.code == CLError.denied.rawValue {
+                    statusMessage = "Location Services Disabled"
+                  } else {
+                    statusMessage = "Error Getting Location"
+                  }
+                } else if !CLLocationManager.locationServicesEnabled() {
+                  statusMessage = "Location Services Disabled"
+                } else if updatingLocation {
+                  statusMessage = "Searching..."
+                } else {
+                  statusMessage = "Tap 'Get My Location' to Start"
+                }
+            labelMensaje.text = statusMessage
         }
     }
     
@@ -84,11 +97,40 @@ class LocationActualViewController: UIViewController, CLLocationManagerDelegate 
         
         present(alert, animated: true, completion: nil)
     }
+    
+    func iniciarManejadorUbicacion(){
+        if CLLocationManager.locationServicesEnabled() {
+            //aqui le decimos que este controlador queire firmar elprotocolo y sera su delegado
+            //haciendo lo que en el protocolo dice para obtener la ubicacion
+            locationManager.delegate = self
+            //le decimos que queremos preccion de 10 metros
+            locationManager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters
+            //iniciamos la lectura de la ubicacion y que se vaya actualizando
+            locationManager.startUpdatingLocation()
+            updatingLocation = true
+        }
+    }
+    
+    func pararManejadorUbicacion(){
+        if updatingLocation {
+            self.locationManager.stopUpdatingLocation()
+            self.locationManager.delegate = nil
+            updatingLocation = false
+        }
+    }
 
     
     // MARK: - CLLocationManagerDelegate metodos del delgado
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         print("Fallo con el error \(error.localizedDescription)")
+        
+        if (error as NSError).code == CLError.locationUnknown.rawValue {
+            return
+        }
+        
+        lastLocationError = error
+        pararManejadorUbicacion()
+        actulizarLabels()
     }
     
     //se ejecuta para estar actulizando la poscion del gps siempre se estara ejecutando mientras la app esta funcionandos
@@ -98,6 +140,7 @@ class LocationActualViewController: UIViewController, CLLocationManagerDelegate 
         print("Actulizo ubicaciones con la ultima ubicacion es \(nuevaUbicacion)")
         
         self.location = nuevaUbicacion
+        self.lastLocationError = nil
         actulizarLabels()
     }
 }
