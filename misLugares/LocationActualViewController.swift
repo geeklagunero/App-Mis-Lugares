@@ -17,6 +17,8 @@ class LocationActualViewController: UIViewController, CLLocationManagerDelegate 
     @IBOutlet weak var botonEtiqueta: UIButton!
     @IBOutlet weak var buttonObtener: UIButton!
     
+    var timer: Timer?
+    
     //objeto que realizara la geocodificacion
     let geocoder = CLGeocoder()
     //lugar para marcar
@@ -195,6 +197,8 @@ class LocationActualViewController: UIViewController, CLLocationManagerDelegate 
             //iniciamos la lectura de la ubicacion y que se vaya actualizando
             locationManager.startUpdatingLocation()
             updatingLocation = true
+            
+            timer = Timer.scheduledTimer(timeInterval: 60, target: self, selector: #selector(didTimeOut), userInfo: nil, repeats: false)
         }
     }
     
@@ -203,6 +207,18 @@ class LocationActualViewController: UIViewController, CLLocationManagerDelegate 
             self.locationManager.stopUpdatingLocation()
             self.locationManager.delegate = nil
             updatingLocation = false
+            if let timer = timer {
+                timer.invalidate()
+            }
+        }
+    }
+    
+    @objc func didTimeOut() {
+        print("** timeOut")
+        if self.location == nil {
+            pararManejadorUbicacion()
+            lastLocationError = NSError(domain: "MyLocationsErrorDomain", code: 1, userInfo: nil)
+            actulizarLabels()
         }
     }
 
